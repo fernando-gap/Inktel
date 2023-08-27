@@ -3,30 +3,45 @@ from aqt.qt import QCheckBox, QMenu, QWidgetAction
 from aqt.reviewer import Reviewer
 from aqt.webview import WebContent
 
-def on_webview_will_set_content(web_content: WebContent, context) -> None:
-    if not isinstance(context, Reviewer):
-        return
+class Application:
+    is_running = False
+
+    def __init__(self) -> None:
+        self._load_addon_files()
+        self._menubar()
+
+    def on_webview_will_set_content(self, web_content: WebContent, context) -> None:
+        if not isinstance(context, Reviewer):
+            return
+        
+        addon_package = mw.addonManager.addonFromModule(__name__)
+        web_content.js.append(f"/_addons/{addon_package}/js/canvas.js")
+        web_content.js.append(f"/_addons/{addon_package}/js/main.js")
+        web_content.body = '<canvas id="inktel"></canvas>' + web_content.body
     
-    addon_package = mw.addonManager.addonFromModule(__name__)
-    web_content.js.append(f"/_addons/{addon_package}/js/canvas.js")
-    web_content.js.append(f"/_addons/{addon_package}/js/main.js")
-    web_content.body = '<canvas id="inktel"></canvas>' + web_content.body
+    def enable_disable_inktel(self):
+        """Disable extension by removing hook. 
+           Changes only apply on the next webview_will_set_content event.
+        """
+
+        self.is_running = not self.is_running
+
+        if self.is_running:
+            gui_hooks.webview_will_set_content.append(self.on_webview_will_set_content)
+        else:
+            gui_hooks.webview_will_set_content.remove(self.on_webview_will_set_content)
+
+    def _menubar(self):
+        checkbox = QCheckBox("Enable Inktel Extension")
+        menu = QMenu("Inktel", parent=mw.form.menubar)
+        action = QWidgetAction(menu)
+        action.setDefaultWidget(checkbox)
+        qconnect(checkbox.stateChanged, self.enable_disable_inktel)
+        menu.addAction(action)
+        mw.form.menuTools.addMenu(menu)
+    
+    def _load_addon_files(self):
+        mw.addonManager.setWebExports(__name__, r"js/.*js")
 
 
-def enable_disable_inktel(state):
-    pass
-
-# load js files
-mw.addonManager.setWebExports(__name__, r"js/.*js")
-
-# load menu bar
-checkbox = QCheckBox("Enable Inktel")
-menu = QMenu("Inktel", parent=mw.form.menubar)
-action = QWidgetAction(menu)
-action.setDefaultWidget(checkbox)
-qconnect(checkbox.stateChanged, enable_disable_inktel)
-menu.addAction(action)
-mw.form.menuTools.addMenu(menu)
-
-# start drawing every time the user studies.
-gui_hooks.webview_will_set_content.append(on_webview_will_set_content)
+app = Application()

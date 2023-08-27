@@ -3,6 +3,8 @@ from aqt.qt import QCheckBox, QMenu, QWidgetAction
 from aqt.reviewer import Reviewer
 from aqt.webview import WebContent
 
+import os
+
 class Application:
     is_running = False
 
@@ -17,7 +19,11 @@ class Application:
         addon_package = mw.addonManager.addonFromModule(__name__)
         web_content.js.append(f"/_addons/{addon_package}/js/canvas.js")
         web_content.js.append(f"/_addons/{addon_package}/js/main.js")
-        web_content.body = '<canvas id="inktel"></canvas>' + web_content.body
+
+        
+        # inject html file
+        with open(f"{os.path.dirname(__file__)}/html/index.html") as f:
+            web_content.body += f.read()
     
     def enable_disable_inktel(self):
         """Disable extension by removing hook. 
@@ -26,10 +32,10 @@ class Application:
 
         self.is_running = not self.is_running
 
-        if self.is_running:
-            gui_hooks.webview_will_set_content.append(self.on_webview_will_set_content)
-        else:
-            gui_hooks.webview_will_set_content.remove(self.on_webview_will_set_content)
+        # if self.is_running:
+        #     gui_hooks.webview_will_set_content.append(self.on_webview_will_set_content)
+        # else:
+        #     gui_hooks.webview_will_set_content.remove(self.on_webview_will_set_content)
 
     def _menubar(self):
         checkbox = QCheckBox("Enable Inktel Extension")
@@ -42,6 +48,7 @@ class Application:
     
     def _load_addon_files(self):
         mw.addonManager.setWebExports(__name__, r"js/.*js")
+        gui_hooks.webview_will_set_content.append(self.on_webview_will_set_content)
 
 
 app = Application()

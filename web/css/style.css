@@ -1,0 +1,35 @@
+#inktel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+#inktel-buttons {
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    transform: translate(-100%, -50%);
+    display: flex;
+    padding: 20px;
+    z-index: 2;
+}
+
+.inktel-item {
+  background-color: whitesmoke;
+  color: black;
+  line-height: 25px;
+  width: 25px;
+  height: 25px;
+  border-radius: 7px;
+  margin-top: 4px;
+  margin-left: 3px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none!important;
+  box-shadow: 1px 1px 3px black;
+}
+
+.inktel-item.inktel-clicked {
+  background-color: blue;
+}

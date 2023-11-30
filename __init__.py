@@ -6,39 +6,57 @@ from aqt.webview import WebContent
 import os
 
 class Application:
-    is_running = False
-
     def __init__(self) -> None:
-        self._load_addon_files()
+        self.addon_path = os.path.dirname(__file__)
+        self.config = mw.addonManager.getConfig(__name__)
+        mw.addonManager.setWebExports(__name__, r"web/.*(css|js|html)")
+
+        if not self.config:
+            self.config = { "enable": False }
+
+            with open(f"{self.addon_path}/config.json", "w") as f:
+                f.write("{}")
+
+            mw.addonManager.writeConfig(__name__, self.config)
+
         self._menubar()
+
+        gui_hooks.webview_will_set_content.append(
+            self.on_webview_will_set_content)
 
     def on_webview_will_set_content(self, web_content: WebContent, context) -> None:
         if not isinstance(context, Reviewer):
             return
         
         addon_package = mw.addonManager.addonFromModule(__name__)
-        web_content.js.append(f"/_addons/{addon_package}/js/canvas.js")
-        web_content.js.append(f"/_addons/{addon_package}/js/main.js")
+        web_content.js.append(f"/_addons/{addon_package}/web/js/canvas.js")
+        web_content.js.append(f"/_addons/{addon_package}/web/js/main.js")
+        web_content.js.append(f"/_addons/{addon_package}/web/js/paint.js")
+        web_content.css.append(f"/_addons/{addon_package}/web/css/style.css")
 
-        
         # inject html file
-        with open(f"{os.path.dirname(__file__)}/html/index.html") as f:
+        with open(f"{self.addon_path}/web/html/index.html") as f:
             web_content.body += f.read()
+            # disable extension when "enable" is off
+            web_content.body += f'<script>{self._set_visible(self.config["enable"])}</script>'
+
     
     def enable_disable_inktel(self):
-        """Disable extension by removing hook. 
-           Changes only apply on the next webview_will_set_content event.
-        """
-
-        self.is_running = not self.is_running
-
-        # if self.is_running:
-        #     gui_hooks.webview_will_set_content.append(self.on_webview_will_set_content)
-        # else:
-        #     gui_hooks.webview_will_set_content.remove(self.on_webview_will_set_content)
+        self.config["enable"] = not self.config["enable"]
+        mw.web.eval(self._set_visible(self.config["enable"]))
+        mw.addonManager.writeConfig(__name__, self.config)
+    
+    def _set_visible(self, is_visible: bool) -> str:
+        return f"""
+            document.getElementById("inktel-addon")
+                .style.display = {str(is_visible).lower()} 
+                    ? "block" 
+                    : "none" 
+            """
 
     def _menubar(self):
         checkbox = QCheckBox("Enable Inktel Extension")
+        checkbox.setChecked(self.config["enable"])
         menu = QMenu("Inktel", parent=mw.form.menubar)
         action = QWidgetAction(menu)
         action.setDefaultWidget(checkbox)
@@ -46,9 +64,4 @@ class Application:
         menu.addAction(action)
         mw.form.menuTools.addMenu(menu)
     
-    def _load_addon_files(self):
-        mw.addonManager.setWebExports(__name__, r"js/.*js")
-        gui_hooks.webview_will_set_content.append(self.on_webview_will_set_content)
-
-
 app = Application()
